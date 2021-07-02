@@ -1,0 +1,105 @@
+version: "3.5"
+services:
+  baliexpat-redis:
+    image: redis:alpine
+    container_name: baliexpat-redis
+    volumes:
+      - baliexpat-redis:/data
+    ports:
+      - "16377:6379"
+    networks:
+      - baliexpat
+
+  baliexpat-mysql:
+    image: mysql:5.7.22
+    container_name: baliexpat-mysql
+    working_dir: /application
+    volumes:
+      - baliexpat-mysql-data:/var/lib/mysql/
+    environment:
+      MYSQL_ROOT_PASSWORD: KBHJ8765ljk767kh
+      MYSQL_DATABASE: app
+    ports:
+      - "2324:3306"
+    networks:
+      - baliexpat
+
+  baliexpat-webserver:
+    image: nginx:alpine
+    container_name: baliexpat-webserver
+    working_dir: /application
+    volumes:
+      - ../../:/application
+      - ./phpdocker/nginx:/etc/nginx/conf.d
+      - ../../../../baliexpat-websockets-handler:/frontend
+    ports:
+      - "8080:80"
+    networks:
+      - baliexpat
+    depends_on:
+      - baliexpat-php-fpm
+
+  baliexpat-php-fpm:
+    build: phpdocker/php-fpm
+    container_name: baliexpat-php-fpm
+    working_dir: /application
+    volumes:
+      - ../../:/application
+      - ./phpdocker/php-fpm/php-ini-overrides.ini:/etc/php/7.4/fpm/conf.d/99-overrides.ini
+    ports:
+      - "9000"
+    networks:
+      - baliexpat
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: app
+
+  baliexpat-scheduler:
+    build: phpdocker/php-fpm
+    container_name: baliexpat-scheduler
+    volumes:
+      - ../../:/application
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: scheduler
+    networks:
+      - baliexpat
+
+  baliexpat-queue:
+    build: phpdocker/php-fpm
+    container_name: baliexpat-queue
+    volumes:
+      - ../../:/application
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: queue
+    networks:
+      - baliexpat
+
+  baliexpat-websocket:
+    build: phpdocker/php-fpm
+    container_name: baliexpat-websocket
+    volumes:
+      - ../../:/application
+    ports:
+      - "6001:6001"
+    environment:
+      APP_ENV: local
+      CONTAINER_ROLE: websocket
+    networks:
+      - baliexpat
+    links:
+      - baliexpat-redis
+    depends_on:
+      - baliexpat-redis
+
+networks:
+  baliexpat:
+    driver: bridge
+
+volumes:
+  baliexpat-mysql-data:
+    driver: "local"
+  baliexpat-redis:
+    driver: "local"
+
